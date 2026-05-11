@@ -13,7 +13,10 @@ device:
   preference: "auto"   # auto | cuda | mps | cpu
 
 data:
-  num_joints: 12
+  source: "aistpp"                 # aistpp | synthetic
+  representation: "smpl_axis_angle_24x3"
+  num_joints: 24
+  input_dim: 72
   sequence_length: 360
   train_samples: 1536
   val_samples: 384
@@ -21,6 +24,23 @@ data:
   batch_size: 64
   num_workers: 0
   sample_rate_hz: 30.0
+
+  aist:
+    root_dir: "${AISTPP_ROOT:-/kaggle/input/aistplusplus}"
+    file_glob: "**/*"
+    pose_keys:
+      - "smpl_poses"
+      - "poses"
+      - "pose"
+      - "theta"
+      - "thetas"
+      - "pred_thetas"
+    source_fps: 60.0
+    target_fps: 30.0
+    clip_stride: 180
+    train_split: 0.80
+    val_split: 0.10
+    max_files_per_split: null
 
   motion_modes:
     walking:
@@ -58,15 +78,25 @@ data:
     drift_scale: 0.55
 
   joint_limits:
-    # Radians for abstract 12-DOF humanoid representation.
+    # Radians for SMPL 24-joint axis-angle representation; refined anatomical limits arrive in Phase 4.
     lower:
-      [-0.80, -0.50, -1.20, -0.80, -0.50, -1.20, -0.90, -0.60, -1.40, -0.90, -0.60, -1.40]
+      [-3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14,
+       -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14,
+       -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14,
+       -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14,
+       -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14,
+       -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14, -3.14]
     upper:
-      [ 0.80,  0.90,  1.20,  0.80,  0.90,  1.20,  0.90,  0.60,  1.40,  0.90,  0.60,  1.40]
+      [3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14,
+       3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14,
+       3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14,
+       3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14,
+       3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14,
+       3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14]
 
 model:
   name: "1d_transformer_diffusion"
-  input_dim: 12
+  input_dim: 72
   hidden_dim: 128
   num_layers: 4
   num_heads: 4

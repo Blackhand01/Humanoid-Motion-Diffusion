@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from embodied_motion_flow.config import ExperimentConfig
+from embodied_motion_flow.data.aist_loader import build_aist_dataset
 from embodied_motion_flow.data.synthetic_generator import generate_synthetic_batch
 
 
@@ -47,9 +48,9 @@ class DataSplits:
     train_loader: DataLoader[dict[str, torch.Tensor]]
     val_loader: DataLoader[dict[str, torch.Tensor]]
     test_loader: DataLoader[dict[str, torch.Tensor]]
-    train_dataset: MotionTrajectoryDataset
-    val_dataset: MotionTrajectoryDataset
-    test_dataset: MotionTrajectoryDataset
+    train_dataset: Dataset[dict[str, torch.Tensor]]
+    val_dataset: Dataset[dict[str, torch.Tensor]]
+    test_dataset: Dataset[dict[str, torch.Tensor]]
 
 
 def _build_split_dataset(config: ExperimentConfig, split: str, size: int, seed: int) -> MotionTrajectoryDataset:
@@ -64,9 +65,16 @@ def _build_split_dataset(config: ExperimentConfig, split: str, size: int, seed: 
 def build_dataloaders(config: ExperimentConfig) -> DataSplits:
     """Build deterministic train/val/test data splits and dataloaders."""
     base_seed = config.reproducibility.seed
-    train_ds = _build_split_dataset(config, "train", config.data.train_samples, base_seed + 1)
-    val_ds = _build_split_dataset(config, "val", config.data.val_samples, base_seed + 2)
-    test_ds = _build_split_dataset(config, "test", config.data.test_samples, base_seed + 3)
+    if config.data.source == "aistpp":
+        train_ds = build_aist_dataset(config.data.aist, config.data.sequence_length, "train")
+        val_ds = build_aist_dataset(config.data.aist, config.data.sequence_length, "val")
+        test_ds = build_aist_dataset(config.data.aist, config.data.sequence_length, "test")
+    elif config.data.source == "synthetic":
+        train_ds = _build_split_dataset(config, "train", config.data.train_samples, base_seed + 1)
+        val_ds = _build_split_dataset(config, "val", config.data.val_samples, base_seed + 2)
+        test_ds = _build_split_dataset(config, "test", config.data.test_samples, base_seed + 3)
+    else:
+        raise ValueError(f"Unsupported data.source: {config.data.source}")
 
     loader_kwargs = {
         "batch_size": config.data.batch_size,

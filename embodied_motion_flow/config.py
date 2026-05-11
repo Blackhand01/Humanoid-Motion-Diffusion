@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import os
 from pathlib import Path
+import re
 from typing import Any
 
 import yaml
@@ -70,10 +72,40 @@ class JointLimitConfig:
 
 
 @dataclass(frozen=True)
-class DataConfig:
-    """Synthetic data generation and dataloader settings."""
+class AISTConfig:
+    """AIST++ SMPL loader settings.
 
+    Fields:
+        root_dir: Dataset root containing recursive .pkl/.npz SMPL motion files.
+        file_glob: Recursive glob pattern relative to root_dir.
+        pose_keys: Candidate dictionary keys for SMPL axis-angle poses [T, 72].
+        source_fps: Frame rate of raw AIST++ motion files.
+        target_fps: Target frame rate after deterministic temporal downsampling.
+        clip_stride: Sliding-window stride in frames after downsampling.
+        train_split: Fraction of sorted files assigned to train.
+        val_split: Fraction of sorted files assigned to validation.
+        max_files_per_split: Optional cap for lightweight validation notebooks.
+    """
+
+    root_dir: str
+    file_glob: str
+    pose_keys: list[str]
+    source_fps: float
+    target_fps: float
+    clip_stride: int
+    train_split: float
+    val_split: float
+    max_files_per_split: int | None
+
+
+@dataclass(frozen=True)
+class DataConfig:
+    """Motion data generation/loading and dataloader settings."""
+
+    source: str
+    representation: str
     num_joints: int
+    input_dim: int
     sequence_length: int
     train_samples: int
     val_samples: int
@@ -84,6 +116,7 @@ class DataConfig:
     motion_modes: dict[str, MotionModeConfig]
     anomalies: AnomalyConfig
     joint_limits: JointLimitConfig
+    aist: AISTConfig
 
 
 @dataclass(frozen=True)
@@ -171,6 +204,27 @@ def _build_motion_modes(raw_modes: dict[str, Any]) -> dict[str, MotionModeConfig
     return {name: MotionModeConfig(**cfg) for name, cfg in raw_modes.items()}
 
 
+def _expand_env_defaults(value: Any) -> Any:
+    """Expand ${VAR:-default} and ${VAR} expressions recursively in YAML values."""
+    if isinstance(value, dict):
+        return {key: _expand_env_defaults(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_expand_env_defaults(item) for item in value]
+    if not isinstance(value, str):
+        return value
+
+    pattern = re.compile(r"\$\{([^}:]+)(?::-([^}]*))?\}")
+
+    def replace(match: re.Match[str]) -> str:
+        env_name = match.group(1)
+        default = match.group(2)
+        if env_name in os.environ:
+            return os.environ[env_name]
+        return default if default is not None else ""
+
+    return pattern.sub(replace, os.path.expandvars(value))
+
+
 def _from_dict(raw: dict[str, Any]) -> ExperimentConfig:
     """Create an :class:`ExperimentConfig` from a parsed YAML dictionary."""
     return ExperimentConfig(
@@ -178,7 +232,10 @@ def _from_dict(raw: dict[str, Any]) -> ExperimentConfig:
         reproducibility=ReproducibilityConfig(**raw["reproducibility"]),
         device=DeviceConfig(**raw["device"]),
         data=DataConfig(
+            source=raw["data"].get("source", "synthetic"),
+            representation=raw["data"].get("representation", "synthetic_12dof"),
             num_joints=raw["data"]["num_joints"],
+            input_dim=raw["data"].get("input_dim", raw["data"]["num_joints"]),
             sequence_length=raw["data"]["sequence_length"],
             train_samples=raw["data"]["train_samples"],
             val_samples=raw["data"]["val_samples"],
@@ -189,6 +246,7 @@ def _from_dict(raw: dict[str, Any]) -> ExperimentConfig:
             motion_modes=_build_motion_modes(raw["data"]["motion_modes"]),
             anomalies=AnomalyConfig(**raw["data"]["anomalies"]),
             joint_limits=JointLimitConfig(**raw["data"]["joint_limits"]),
+            aist=AISTConfig(**raw["data"]["aist"]),
         ),
         model=ModelConfig(**raw["model"]),
         diffusion=DiffusionConfig(**raw["diffusion"]),
@@ -203,7 +261,7 @@ def load_config(config_path: str | Path) -> ExperimentConfig:
     """Load YAML config and return a typed experiment config object."""
     path = Path(config_path)
     with path.open("r", encoding="utf-8") as handle:
-        raw = yaml.safe_load(handle)
+        raw = _expand_env_defaults(yaml.safe_load(handle))
     return _from_dict(raw)
 
 
