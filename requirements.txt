@@ -1,0 +1,13 @@
+numpy>=1.26
+PyYAML>=6.0
+scikit-learn>=1.4
+torch>=2.2
+tqdm>=4.66
+pytest>=8.0
+matplotlib>=3.8
+imageio>=2.34
+imageio-ffmpeg>=0.5
+ipython>=8.20
+ipykernel>=6.29
+nbformat>=5.10
+nbclient>=0.10

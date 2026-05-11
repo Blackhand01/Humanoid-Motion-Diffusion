@@ -1,0 +1,62 @@
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments and local environment files
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+!.env.example
+
+# Jupyter runtime files
+.ipynb_checkpoints/
+
+# Build and packaging outputs
+build/
+dist/
+*.egg-info/
+
+# IDE/editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project runtime outputs
+outputs/
+
+# Model/data artifacts that should be regenerated, not committed
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.npz
+*.npy
+*.pkl
+*.pickle
+
+# Logs and media artifacts
+*.log
+*.mp4
+*.gif
+*.avi
+*.mov
+
+# Experiment tracking directories
+wandb/
+mlruns/
+lightning_logs/
+runs/
