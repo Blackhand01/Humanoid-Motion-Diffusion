@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 from typing import Any
 
 import imageio.v2 as imageio
+import imageio_ffmpeg
 import matplotlib
 
 matplotlib.use("Agg")
@@ -25,6 +27,37 @@ def _to_numpy(array: np.ndarray | torch.Tensor) -> np.ndarray:
 def _open_writer(path: Path, fps: int) -> Any:
     path.parent.mkdir(parents=True, exist_ok=True)
     return imageio.get_writer(path, fps=fps, codec="libx264", macro_block_size=1)
+
+
+def _mux_audio(video_path: Path, audio_path: Path, output_path: Path) -> Path:
+    """Attach the conditioning song segment to a rendered MP4."""
+    if not audio_path.exists():
+        raise FileNotFoundError(f"Audio file does not exist: {audio_path}")
+    ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    command = [
+        ffmpeg,
+        "-y",
+        "-loglevel",
+        "error",
+        "-i",
+        str(video_path),
+        "-i",
+        str(audio_path),
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a:0",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-shortest",
+        str(output_path),
+    ]
+    subprocess.run(command, check=True)
+    return output_path
 
 
 def _audio_joint_heatmap(motion: np.ndarray, audio_context: np.ndarray) -> np.ndarray:
@@ -47,6 +80,7 @@ def render_viral_motion(
     motion: np.ndarray | torch.Tensor,
     mp4_path: str | Path,
     title: str,
+    audio_path: str | Path | None = None,
     fps: int = 30,
     dpi: int = 160,
     max_frames: int | None = None,
@@ -58,8 +92,9 @@ def render_viral_motion(
     bounds = sr._bounds_for_sequences([joints])
     ground_y = float(joints.reshape(-1, 3)[:, 1].min() - 0.06)
     path = Path(mp4_path)
+    render_path = path.with_name(f"{path.stem}_silent{path.suffix}") if audio_path is not None else path
 
-    with _open_writer(path, fps=fps) as writer:
+    with _open_writer(render_path, fps=fps) as writer:
         for idx, frame_idx in enumerate(frame_ids):
             fig = plt.figure(figsize=(9.0, 16.0), dpi=dpi, facecolor="#050608")
             axis = fig.add_subplot(111, projection="3d", facecolor="#050608")
@@ -75,6 +110,9 @@ def render_viral_motion(
             sr._draw_skeleton(axis, joints[int(frame_idx)], alpha=1.0, linewidth=5.2)
             writer.append_data(sr._capture_frame(fig))
             plt.close(fig)
+    if audio_path is not None:
+        _mux_audio(render_path, Path(audio_path), path)
+        render_path.unlink(missing_ok=True)
     return path
 
 

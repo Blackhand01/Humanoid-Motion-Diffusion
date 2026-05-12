@@ -15,6 +15,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import librosa
 import numpy as np
@@ -31,6 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-train", action="store_true", help="Use an existing checkpoint and only generate the showcase.")
     parser.add_argument("--fresh-start", action="store_true", help="Delete previous outputs before training.")
     parser.add_argument("--track", type=str, default="", help="Optional Stardust audio path override.")
+    parser.add_argument("--zip-path", type=str, default="outputs/embodied_motion_flow_showcase.zip")
     return parser.parse_args()
 
 
@@ -150,6 +152,7 @@ def _run_showcase_generation(config: ExperimentConfig, checkpoint_path: Path, lo
         motion=motion_np,
         mp4_path=output_root / "stardust_0046_0101_viral.mp4",
         title="Music Sounds Better With You",
+        audio_path=sliced_audio,
         fps=config.showcase.viral_fps,
         dpi=config.showcase.render_dpi,
         max_frames=frames,
@@ -170,6 +173,7 @@ def _run_showcase_generation(config: ExperimentConfig, checkpoint_path: Path, lo
         "audio_slice": str(sliced_audio),
         "generated_motion": str(output_root / "stardust_0046_0101_generated_motion.npy"),
         "viral_mp4": str(viral_path),
+        "viral_audio_source": str(sliced_audio),
         "research_mp4": str(research_path),
         "guidance_scale": str(config.inference.guidance_scale),
         "ema": str(config.inference.use_ema),
@@ -177,6 +181,46 @@ def _run_showcase_generation(config: ExperimentConfig, checkpoint_path: Path, lo
     }
     (output_root / "showcase_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return manifest
+
+
+def _write_showcase_zip(config, manifest: dict[str, str], config_path: Path, zip_path: Path) -> Path:
+    """Package the Kaggle run into one downloadable archive."""
+    output_root = Path(config.project.output_dir)
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    if zip_path.exists():
+        zip_path.unlink()
+
+    patterns = (
+        "showcase/*",
+        "metrics/*",
+        "plots/*",
+        "logs/*",
+        "animations/*",
+        "previews/*",
+        "checkpoints/model.pt",
+    )
+    written: set[str] = set()
+
+    def add_file(archive: ZipFile, source: Path, archive_name: Path) -> None:
+        if not source.exists() or not source.is_file() or source.resolve() == zip_path.resolve():
+            return
+        key = str(archive_name)
+        if key in written:
+            return
+        archive.write(source, key)
+        written.add(key)
+
+    with ZipFile(zip_path, "w", compression=ZIP_DEFLATED, compresslevel=6) as archive:
+        for pattern in patterns:
+            for source in sorted(output_root.glob(pattern)):
+                add_file(archive, source, Path("outputs") / source.relative_to(output_root))
+        add_file(archive, config_path, Path(config_path.name))
+        zip_manifest = dict(manifest)
+        zip_manifest["archive_file_count"] = str(len(written))
+        zip_manifest["archive_path"] = str(zip_path)
+        archive.writestr("zip_manifest.json", json.dumps(zip_manifest, indent=2) + "\n")
+
+    return zip_path
 
 
 def main() -> None:
@@ -218,7 +262,10 @@ def main() -> None:
         raise FileNotFoundError(f"Checkpoint does not exist for --skip-train: {checkpoint_path}")
 
     manifest = _run_showcase_generation(config, checkpoint_path, logger)
+    zip_path = _write_showcase_zip(config, manifest, Path(args.config), Path(args.zip_path))
+    manifest["zip_path"] = str(zip_path)
     logger.info("Showcase complete: %s", manifest)
+    logger.info("Downloadable archive: %s", zip_path)
 
 
 if __name__ == "__main__":
