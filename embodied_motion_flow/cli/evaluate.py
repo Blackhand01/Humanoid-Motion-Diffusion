@@ -24,7 +24,7 @@ from embodied_motion_flow.visualization.animation import save_denoising_animatio
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate Embodied-Motion-Flow checkpoint.")
-    parser.add_argument("--config", type=str, default="config.yaml", help="Path to config YAML.")
+    parser.add_argument("--config", type=str, default="configs/base.yaml", help="Path or profile name for config YAML.")
     parser.add_argument(
         "--checkpoint",
         type=str,

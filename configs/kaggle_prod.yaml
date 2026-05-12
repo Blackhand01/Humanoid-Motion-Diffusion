@@ -1,0 +1,51 @@
+inherits: base.yaml
+
+project:
+  output_dir: "${EMF_OUTPUT_DIR:-/kaggle/working/outputs}"
+
+device:
+  preference: "auto"
+
+data:
+  sequence_length: 120
+  batch_size: 32
+  sample_rate_hz: 30.0
+  aist:
+    root_dir: "${AISTPP_ROOT:-/kaggle/input/datasets/stefanoroybisignano/aist-smpl-clean/aist-smpl-clean/motions}"
+    split_dir: "${AISTPP_SPLIT_ROOT:-/kaggle/input/datasets/stefanoroybisignano/aist-smpl-clean/aist-smpl-clean/splits}"
+    ignore_list_path: "${AISTPP_IGNORE_LIST:-/kaggle/input/datasets/stefanoroybisignano/aist-smpl-clean/aist-smpl-clean/ignore_list.txt}"
+    clip_stride: 15
+    max_files_per_split: null
+    toy_mode: false
+
+audio:
+  root_dir: "${AISTPP_AUDIO_ROOT:-/kaggle/input/datasets/stefanoroybisignano/aist-smpl-clean/aist-smpl-clean/audio}"
+  cache_dir: "${EMF_AUDIO_CACHE:-/kaggle/working/outputs/audio_features}"
+  require_audio: true
+  min_coverage: 0.95
+
+training:
+  epochs: 180
+  mixed_precision: true
+  save_every_epochs: 10
+  accumulation_steps: 2
+  warmup_epochs: 5
+  auto_resume: false
+  log_every_steps: 100
+
+inference:
+  guidance_scale: 1.35
+  use_ema: true
+  sliding_window_frames: 120
+  prefix_frames: 60
+  generation_frames: 450
+  diffusion_steps: null
+
+showcase:
+  track_path: "${SHOWCASE_TRACK:-/kaggle/input/datasets/stefanoroybisignano/stardustdata/stardust.mp3}"
+  clip_start_seconds: 46.0
+  clip_duration_seconds: 15.0
+  output_dir: "${EMF_SHOWCASE_DIR:-/kaggle/working/outputs/showcase}"
+  viral_fps: 30
+  research_fps: 30
+  render_dpi: 140

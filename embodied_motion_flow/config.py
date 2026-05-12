@@ -293,6 +293,60 @@ def _expand_env_defaults(value: Any) -> Any:
     return pattern.sub(replace, os.path.expandvars(value))
 
 
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge profile overrides into a base config dictionary."""
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def resolve_config_path(config_path: str | Path) -> Path:
+    """Resolve a config file path or named profile under ``configs/``."""
+    path = Path(config_path)
+    candidates = [path]
+    if path.suffix not in {".yaml", ".yml"}:
+        candidates.append(Path("configs") / f"{path}.yaml")
+    elif not path.is_absolute():
+        candidates.append(Path("configs") / path.name)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    checked = ", ".join(str(candidate) for candidate in candidates)
+    raise FileNotFoundError(f"Could not resolve config '{config_path}'. Checked: {checked}")
+
+
+def _resolve_inherited_path(parent: str | Path, current_path: Path) -> Path:
+    parent_path = Path(parent)
+    if parent_path.is_absolute() and parent_path.exists():
+        return parent_path
+    relative = current_path.parent / parent_path
+    if relative.exists():
+        return relative
+    return resolve_config_path(parent_path)
+
+
+def _load_yaml_profile(path: Path, seen: set[Path] | None = None) -> dict[str, Any]:
+    """Load a YAML profile and recursively apply its ``inherits`` chain."""
+    seen = seen or set()
+    resolved = path.resolve()
+    if resolved in seen:
+        raise ValueError(f"Recursive config inheritance detected at {path}")
+    seen.add(resolved)
+
+    with path.open("r", encoding="utf-8") as handle:
+        raw = yaml.safe_load(handle) or {}
+    inherited = raw.pop("inherits", None)
+    if inherited is None:
+        return raw
+    base = _load_yaml_profile(_resolve_inherited_path(inherited, path), seen)
+    return _deep_merge(base, raw)
+
+
 def _from_dict(raw: dict[str, Any]) -> ExperimentConfig:
     """Create an :class:`ExperimentConfig` from a parsed YAML dictionary."""
     training_raw = dict(raw["training"])
@@ -331,11 +385,10 @@ def _from_dict(raw: dict[str, Any]) -> ExperimentConfig:
     )
 
 
-def load_config(config_path: str | Path) -> ExperimentConfig:
-    """Load YAML config and return a typed experiment config object."""
-    path = Path(config_path)
-    with path.open("r", encoding="utf-8") as handle:
-        raw = _expand_env_defaults(yaml.safe_load(handle))
+def load_config(config_path: str | Path = "base") -> ExperimentConfig:
+    """Load a YAML config path or named profile and return a typed config."""
+    path = resolve_config_path(config_path)
+    raw = _expand_env_defaults(_load_yaml_profile(path))
     return _from_dict(raw)
 
 

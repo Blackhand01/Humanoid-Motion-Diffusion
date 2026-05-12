@@ -33,7 +33,7 @@ MUSIC_CSV_URL = "https://aistdancedb.ongaaccel.jp/v1.0.0/data/all_music_wav_url.
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parent
+    return Path(__file__).resolve().parents[2]
 
 
 def _ffmpeg_binary() -> str:

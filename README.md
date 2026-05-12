@@ -11,19 +11,19 @@ The repository includes:
 - DDPM forward/reverse scheduler with deterministic reconstruction path, classifier-free guidance, and EMA inference.
 - Biomechanical consistency loss (joint limits, acceleration, temporal jitter).
 - End-to-end training with AMP, gradient clipping, accumulation, warmup+cosine LR scheduling, checkpoint resume, evaluation, plotting, and animation outputs.
-- Colab/Kaggle runnable notebook (`main_colab.ipynb`).
+- Production Kaggle tutorial notebook (`training_tutorial.ipynb`).
 
 ## Quick Start
 
 ```bash
-pip install -r requirements.txt
-python setup_local_data.py --max-motion-files 5
+pip install -e .
+python scripts/utils/setup_local_data.py --max-motion-files 5
 export AISTPP_ROOT="$(pwd)/data/aist_plusplus/motions"
 export AISTPP_SPLIT_ROOT="$(pwd)/data/aist_plusplus/splits"
-python download_aist_audio_official.py --csv-path data/all_music_wav_url.csv --agree-terms
-python -m embodied_motion_flow.cli.check_audio_conditioning --config config.yaml --fail-under 0.95
-python -m embodied_motion_flow.cli.train --config config.yaml
-python -m embodied_motion_flow.cli.evaluate --config config.yaml --checkpoint outputs/checkpoints/model.pt
+python scripts/data/download_aist_audio_official.py --csv-path data/all_music_wav_url.csv --agree-terms
+python -m embodied_motion_flow.cli.check_audio_conditioning --config configs/base.yaml --fail-under 0.95
+python run_pipeline.py train --config configs/base.yaml
+python run_pipeline.py showcase --config configs/base.yaml --checkpoint outputs/checkpoints/model.pt
 ```
 
 On Apple Silicon, `device.preference: auto` selects MPS when available.
@@ -33,25 +33,31 @@ On Apple Silicon, `device.preference: auto` selects MPS when available.
 Local toy dataset:
 
 ```bash
-python setup_local_data.py --max-motion-files 5
+python scripts/utils/setup_local_data.py --max-motion-files 5
 pytest -q
 ```
 
 Kaggle full dataset:
 
-1. Open `kaggle_bridge.ipynb`.
+1. Open `training_tutorial.ipynb`.
 2. Run all cells.
-3. The notebook clones the repo, downloads official AIST++ motions/splits, verifies files under `/kaggle/working/data/aist_plusplus/motions`, writes a Kaggle config, and launches training.
+3. The notebook clones the repo, maps the Kaggle AIST++ dataset paths, runs `configs/kaggle_prod.yaml`, and writes one downloadable ZIP.
 
 Set `EMF_REPO_URL` in Kaggle if you need to override the default repository URL.
 
 Long-form Kaggle showcase:
 
 ```bash
-python kaggle_showcase_main.py --config config.kaggle.full.yaml --fresh-start
+python run_pipeline.py full --config configs/kaggle_prod.yaml --fresh-start --zip-path /kaggle/working/embodied_motion_flow_showcase.zip
 ```
 
-The Kaggle notebook writes `config.kaggle.full.yaml` with `sequence_length=120`, dense AIST++ windows, no file cap, and a fresh output directory. It trains the model, slices the Stardust track from `0:46` to `1:01`, generates `450` frames with EMA + classifier-free guidance, and writes viral/research MP4 renders under `/kaggle/working/outputs/showcase/`. Use `--skip-train --checkpoint outputs/checkpoints/model.pt` to render from an existing checkpoint.
+The production Kaggle profile uses dense AIST++ windows, no file cap, AMP, EMA, classifier-free guidance, and sliding-window 450-frame generation. It slices the Stardust track from `0:46` to `1:01`, embeds that audio in the Viral MP4, writes the Research MP4, and packages checkpoint, videos, metrics, plots, logs, and manifest into one ZIP.
+
+Config profiles:
+
+- `configs/base.yaml`: default local research configuration.
+- `configs/kaggle_prod.yaml`: full Kaggle training/showcase profile.
+- `configs/testing.yaml`: small deterministic profile for fast checks.
 
 ## Outputs
 
@@ -92,28 +98,15 @@ outputs/
 
 No mAP metric is used.
 
-## Notebook (Colab + Kaggle)
+## Notebook
 
-Run `main_colab.ipynb` from top to bottom. It:
-
-1. Installs dependencies.
-2. Detects GPU (CUDA/CPU fallback).
-3. Loads config and sets deterministic seeds.
-4. Trains the diffusion model.
-5. Saves checkpoint and plots.
-6. Runs evaluation.
-7. Displays generated PNG plots, GIF, and MP4 inline.
-
-The notebook is designed for:
-
-- Google Colab T4.
-- Kaggle P100 or T4x2.
+Run `training_tutorial.ipynb` on Kaggle from top to bottom. It installs runtime dependencies, maps the AIST++ dataset paths, trains with `configs/kaggle_prod.yaml`, renders the 15-second Stardust showcase, and exposes a single downloadable ZIP.
 
 ## Reproducibility
 
 All executable entrypoints:
 
-- Load `config.yaml`.
+- Load a profile from `configs/`.
 - Set deterministic seeds for Python, NumPy, and PyTorch.
 - Log active configuration and selected device.
 

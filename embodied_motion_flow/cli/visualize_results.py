@@ -23,7 +23,7 @@ from embodied_motion_flow.utils.logging import configure_logging, get_logger
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for posterior checkpoint visualization."""
     parser = argparse.ArgumentParser(description="Render SMPL previews from a trained checkpoint.")
-    parser.add_argument("--config", type=str, default="config.yaml", help="Path to config YAML.")
+    parser.add_argument("--config", type=str, default="configs/base.yaml", help="Path or profile name for config YAML.")
     parser.add_argument("--checkpoint", type=str, default="outputs/checkpoints/model.pt", help="Checkpoint path.")
     parser.add_argument("--split", type=str, choices=("train", "val", "test"), default="test", help="Dataset split to render.")
     parser.add_argument("--output-dir", type=str, default="outputs/previews", help="Directory for GIF/MP4 previews.")

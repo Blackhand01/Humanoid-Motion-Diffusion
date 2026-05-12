@@ -11,6 +11,7 @@ import re
 
 import librosa
 import numpy as np
+import soundfile as sf
 
 
 LOGGER = logging.getLogger(__name__)
@@ -172,6 +173,45 @@ def extract_audio_features(
         tempo_bpm=tempo,
         beat_times=beat_times.astype(np.float32),
     )
+
+
+def slice_audio_segment(
+    source_path: str | Path,
+    output_path: str | Path,
+    start_seconds: float,
+    duration_seconds: float,
+    sample_rate: int = 22050,
+) -> Path:
+    """Write a deterministic audio segment used for showcase conditioning.
+
+    Args:
+        source_path: Source audio file. If the exact path is missing and its
+            suffix is not ``.mp3``, a same-stem ``.mp3`` fallback is attempted.
+        output_path: Destination path for the sliced mono waveform.
+        start_seconds: Start time in seconds.
+        duration_seconds: Segment duration in seconds.
+        sample_rate: Target sample rate used by librosa and downstream models.
+    """
+    source = Path(source_path)
+    if not source.exists():
+        mp3_fallback = source.with_suffix(".mp3")
+        if mp3_fallback.exists():
+            source = mp3_fallback
+        else:
+            raise FileNotFoundError(f"Audio source does not exist: {source}")
+    if duration_seconds <= 0.0:
+        raise ValueError("duration_seconds must be positive")
+    if start_seconds < 0.0:
+        raise ValueError("start_seconds must be non-negative")
+
+    audio, sr = librosa.load(source, sr=sample_rate, mono=True, offset=start_seconds, duration=duration_seconds)
+    if audio.size == 0:
+        end = start_seconds + duration_seconds
+        raise ValueError(f"Audio slice is empty: {source} [{start_seconds}, {end}]")
+    destination = Path(output_path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    sf.write(destination, audio, sr)
+    return destination
 
 
 def _audio_cache_key(

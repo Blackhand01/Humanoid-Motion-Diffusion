@@ -36,8 +36,9 @@ dist/
 *.swo
 
 # Project runtime outputs
-outputs/
-data/
+/outputs/
+/kaggle_output/
+/data/
 
 # Model/data artifacts that should be regenerated, not committed
 *.pt
@@ -61,6 +62,3 @@ wandb/
 mlruns/
 lightning_logs/
 runs/
-docs/obiettivo_principe.txt
-docs/aist_paper.pdf
-blueprint.md

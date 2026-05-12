@@ -29,7 +29,7 @@ IGNORE_LIST_URL = "https://raw.githubusercontent.com/google/aistplusplus_api/mai
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parent
+    return Path(__file__).resolve().parents[2]
 
 
 def _download(url: str, target: Path, overwrite: bool = False) -> None:

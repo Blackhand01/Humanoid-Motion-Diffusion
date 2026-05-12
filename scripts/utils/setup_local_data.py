@@ -2,7 +2,7 @@
 
 The script downloads the official Google-hosted AIST++ motion and split archives,
 extracts only the first N SMPL motion pickle files, and prepares a small local
-directory tree compatible with config.yaml.
+directory tree compatible with configs/testing.yaml.
 """
 
 from __future__ import annotations

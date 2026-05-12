@@ -12,6 +12,7 @@ from embodied_motion_flow.audio.audio_processor import (
     find_audio_for_motion,
     infer_aist_music_id,
     load_or_extract_audio_features,
+    slice_audio_segment,
 )
 
 
@@ -61,3 +62,12 @@ def test_audio_feature_cache_round_trip(tmp_path: Path) -> None:
     assert first.frame_features.shape == (30, 14)
     assert np.allclose(first.frame_features, second.frame_features)
     assert len(list(cache_dir.glob("*.npz"))) == 1
+
+
+def test_slice_audio_segment_writes_requested_clip(tmp_path: Path) -> None:
+    audio_path = tmp_path / "source.wav"
+    output_path = tmp_path / "slice.wav"
+    _write_sine_wav(audio_path, seconds=2.0)
+    result = slice_audio_segment(audio_path, output_path, start_seconds=0.5, duration_seconds=1.0)
+    assert result == output_path
+    assert output_path.exists()

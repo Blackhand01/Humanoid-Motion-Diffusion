@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humanoid-motion-diffusion"
+version = "1.0.0"
+description = "Music-conditioned humanoid motion diffusion with SMPL/AIST++ training pipelines."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "PyYAML>=6.0",
+  "scikit-learn>=1.4",
+  "torch>=2.2",
+  "tqdm>=4.66",
+  "matplotlib>=3.8",
+  "imageio>=2.34",
+  "imageio-ffmpeg>=0.5",
+  "librosa>=0.10",
+  "soundfile>=0.12",
+  "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ipython>=8.20",
+  "ipykernel>=6.29",
+  "nbformat>=5.10",
+  "nbclient>=0.10",
+]
+
+[project.scripts]
+emf-pipeline = "run_pipeline:main"
+emf-train = "embodied_motion_flow.cli.train:main"
+emf-evaluate = "embodied_motion_flow.cli.evaluate:main"
+
+[tool.setuptools]
+py-modules = ["run_pipeline"]
+
+[tool.setuptools.packages.find]
+include = ["embodied_motion_flow*"]

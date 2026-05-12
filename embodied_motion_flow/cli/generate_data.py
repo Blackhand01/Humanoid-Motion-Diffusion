@@ -16,7 +16,7 @@ from embodied_motion_flow.utils.logging import configure_logging, get_logger
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate synthetic humanoid trajectories.")
-    parser.add_argument("--config", type=str, default="config.yaml", help="Path to config YAML.")
+    parser.add_argument("--config", type=str, default="configs/base.yaml", help="Path or profile name for config YAML.")
     parser.add_argument(
         "--samples",
         type=int,

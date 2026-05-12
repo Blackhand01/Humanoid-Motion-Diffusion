@@ -16,7 +16,7 @@ from embodied_motion_flow.utils.logging import configure_logging, get_logger
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate AIST++ audio feature coverage and alignment.")
-    parser.add_argument("--config", type=str, default="config.yaml")
+    parser.add_argument("--config", type=str, default="configs/base.yaml")
     parser.add_argument("--fail-under", type=float, default=None, help="Minimum clip-level audio coverage required.")
     return parser.parse_args()
 
