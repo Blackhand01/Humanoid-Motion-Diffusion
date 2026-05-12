@@ -56,6 +56,8 @@ dist/
 *.gif
 *.avi
 *.mov
+!docs/assets/**/*.mp4
+!docs/assets/**/*.gif
 
 # Experiment tracking directories
 wandb/
