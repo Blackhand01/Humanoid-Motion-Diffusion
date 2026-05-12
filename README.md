@@ -48,10 +48,10 @@ Set `EMF_REPO_URL` in Kaggle if you need to override the default repository URL.
 Long-form Kaggle showcase:
 
 ```bash
-python kaggle_showcase_main.py --config config.yaml
+python kaggle_showcase_main.py --config config.kaggle.full.yaml --fresh-start
 ```
 
-This enables auto-resume, trains the model, slices the Stardust track from `0:46` to `1:01`, generates `450` frames with EMA + classifier-free guidance, and writes viral/research MP4 renders under `outputs/showcase/`. Use `--skip-train --checkpoint outputs/checkpoints/model.pt` to render from an existing checkpoint.
+The Kaggle notebook writes `config.kaggle.full.yaml` with `sequence_length=120`, dense AIST++ windows, no file cap, and a fresh output directory. It trains the model, slices the Stardust track from `0:46` to `1:01`, generates `450` frames with EMA + classifier-free guidance, and writes viral/research MP4 renders under `/kaggle/working/outputs/showcase/`. Use `--skip-train --checkpoint outputs/checkpoints/model.pt` to render from an existing checkpoint.
 
 ## Outputs
 

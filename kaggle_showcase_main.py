@@ -12,6 +12,7 @@ from dataclasses import replace
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -28,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--workdir", type=str, default="/kaggle/working/Embodied-Motion-Flow")
     parser.add_argument("--checkpoint", type=str, default="", help="Optional checkpoint override for inference.")
     parser.add_argument("--skip-train", action="store_true", help="Use an existing checkpoint and only generate the showcase.")
+    parser.add_argument("--fresh-start", action="store_true", help="Delete previous outputs before training.")
     parser.add_argument("--track", type=str, default="", help="Optional Stardust audio path override.")
     return parser.parse_args()
 
@@ -66,9 +68,9 @@ def _slice_track(
     return output_path
 
 
-def _config_for_kaggle(config):
+def _config_for_kaggle(config, auto_resume: bool):
     """Enable robust recovery defaults for long Kaggle runs."""
-    training = replace(config.training, auto_resume=True, mixed_precision=True)
+    training = replace(config.training, auto_resume=auto_resume, mixed_precision=True)
     device = replace(config.device, preference="auto")
     return replace(config, training=training, device=device)
 
@@ -189,9 +191,13 @@ def main() -> None:
     from embodied_motion_flow.training.engine import run_training_pipeline
     from embodied_motion_flow.utils.logging import configure_logging, get_logger
 
-    config = _config_for_kaggle(load_config(args.config))
+    config = _config_for_kaggle(load_config(args.config), auto_resume=not args.fresh_start)
     if args.track:
         config = replace(config, showcase=replace(config.showcase, track_path=args.track))
+    if args.fresh_start and not args.skip_train:
+        output_root = Path(config.project.output_dir)
+        if output_root.exists():
+            shutil.rmtree(output_root)
 
     log_root = Path(config.project.output_dir) / "logs"
     log_root.mkdir(parents=True, exist_ok=True)
