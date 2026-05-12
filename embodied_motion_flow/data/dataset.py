@@ -66,9 +66,10 @@ def build_dataloaders(config: ExperimentConfig) -> DataSplits:
     """Build deterministic train/val/test data splits and dataloaders."""
     base_seed = config.reproducibility.seed
     if config.data.source == "aistpp":
-        train_ds = build_aist_dataset(config.data.aist, config.data.sequence_length, "train")
-        val_ds = build_aist_dataset(config.data.aist, config.data.sequence_length, "val")
-        test_ds = build_aist_dataset(config.data.aist, config.data.sequence_length, "test")
+        audio_cfg = config.audio if config.audio.enabled else None
+        train_ds = build_aist_dataset(config.data.aist, config.data.sequence_length, "train", audio_cfg=audio_cfg)
+        val_ds = build_aist_dataset(config.data.aist, config.data.sequence_length, "val", audio_cfg=audio_cfg)
+        test_ds = build_aist_dataset(config.data.aist, config.data.sequence_length, "test", audio_cfg=audio_cfg)
     elif config.data.source == "synthetic":
         train_ds = _build_split_dataset(config, "train", config.data.train_samples, base_seed + 1)
         val_ds = _build_split_dataset(config, "val", config.data.val_samples, base_seed + 2)

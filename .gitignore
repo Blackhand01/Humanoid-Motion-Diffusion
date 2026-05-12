@@ -37,6 +37,7 @@ dist/
 
 # Project runtime outputs
 outputs/
+data/
 
 # Model/data artifacts that should be regenerated, not committed
 *.pt
@@ -60,3 +61,6 @@ wandb/
 mlruns/
 lightning_logs/
 runs/
+docs/obiettivo_principe.txt
+docs/aist_paper.pdf
+blueprint.md

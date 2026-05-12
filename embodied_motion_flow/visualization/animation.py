@@ -102,7 +102,7 @@ def save_denoising_animation(
 
     plt.close(fig)
     imageio.mimsave(gif_path, frames, duration=1.0 / max(fps, 1), loop=0)
-    with imageio.get_writer(mp4_path, fps=fps, codec="libx264") as writer:
+    with imageio.get_writer(mp4_path, fps=fps, codec="libx264", macro_block_size=1) as writer:
         for frame in frames:
             writer.append_data(frame)
 

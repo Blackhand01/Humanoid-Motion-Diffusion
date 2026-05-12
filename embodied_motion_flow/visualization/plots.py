@@ -34,6 +34,8 @@ def save_training_plots(history: dict[str, list[float]], plot_dir: Path) -> dict
     plt.plot(epochs, history["train_joint_limit_loss"], label="Joint Limit", linewidth=1.5)
     plt.plot(epochs, history["train_acceleration_loss"], label="Acceleration", linewidth=1.5)
     plt.plot(epochs, history["train_temporal_jitter_loss"], label="Temporal Jitter", linewidth=1.5)
+    if "train_self_collision_loss" in history:
+        plt.plot(epochs, history["train_self_collision_loss"], label="Self Collision", linewidth=1.5)
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.title("Biomechanical Loss Components")
@@ -46,9 +48,13 @@ def save_training_plots(history: dict[str, list[float]], plot_dir: Path) -> dict
     smoothness_path = plot_dir / "smoothness.png"
     plt.figure(figsize=(8, 4))
     plt.plot(epochs, history["val_temporal_smoothness"], label="Validation Smoothness", linewidth=2)
+    if "val_tsi" in history:
+        plt.plot(epochs, history["val_tsi"], label="Validation TSI", linewidth=1.5)
+    if "val_jlvr" in history:
+        plt.plot(epochs, history["val_jlvr"], label="Validation JLVR", linewidth=1.5)
     plt.xlabel("Epoch")
-    plt.ylabel("Mean Squared Velocity")
-    plt.title("Temporal Smoothness")
+    plt.ylabel("Diagnostic Value")
+    plt.title("Temporal and Anatomical Diagnostics")
     plt.grid(alpha=0.3)
     plt.legend()
     plt.tight_layout()

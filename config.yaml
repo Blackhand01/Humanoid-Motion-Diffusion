@@ -10,23 +10,25 @@ reproducibility:
   benchmark_cudnn: false
 
 device:
-  preference: "auto"   # auto | cuda | mps | cpu
+  preference: "mps"   # auto | cuda | mps | cpu
 
 data:
   source: "aistpp"                 # aistpp | synthetic
   representation: "smpl_axis_angle_24x3"
   num_joints: 24
   input_dim: 72
-  sequence_length: 360
+  sequence_length: 240
   train_samples: 1536
   val_samples: 384
   test_samples: 384
-  batch_size: 64
+  batch_size: 32
   num_workers: 0
   sample_rate_hz: 30.0
 
   aist:
-    root_dir: "${AISTPP_ROOT:-/kaggle/input/aistplusplus}"
+    root_dir: "${AISTPP_ROOT:-data/aist-smpl-clean/motions}"
+    split_dir: "${AISTPP_SPLIT_ROOT:-data/aist-smpl-clean/splits}"
+    ignore_list_path: "${AISTPP_IGNORE_LIST:-data/aist-smpl-clean/ignore_list.txt}"
     file_glob: "**/*"
     pose_keys:
       - "smpl_poses"
@@ -40,7 +42,9 @@ data:
     clip_stride: 180
     train_split: 0.80
     val_split: 0.10
-    max_files_per_split: null
+    max_files_per_split: 240
+    toy_mode: false
+    toy_max_files_per_split: 10
 
   motion_modes:
     walking:
@@ -95,13 +99,26 @@ data:
        3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14]
 
 model:
-  name: "1d_transformer_diffusion"
+  name: "cross_attention_transformer_diffusion"
   input_dim: 72
+  audio_dim: 14
   hidden_dim: 128
   num_layers: 4
   num_heads: 4
   dropout: 0.1
   time_embedding_dim: 128
+
+audio:
+  enabled: true
+  root_dir: "${AISTPP_AUDIO_ROOT:-data/aist-smpl-clean/audio}"
+  sample_rate: 22050
+  hop_length: 512
+  feature_dim: 14
+  cache_dir: "${EMF_AUDIO_CACHE:-outputs/audio_features}"
+  allowed_extensions: [".wav", ".mp3", ".flac", ".m4a", ".mp4"]
+  require_audio: true
+  min_coverage: 0.95
+  log_missing_audio: false
 
 diffusion:
   timesteps: 200
@@ -111,29 +128,64 @@ diffusion:
   prediction_target: "noise"   # noise | sample
 
 training:
-  epochs: 10
+  epochs: 80
   learning_rate: 0.0002
   weight_decay: 0.000001
   grad_clip_norm: 1.0
   mixed_precision: true
   save_every_epochs: 5
+  max_duration_seconds: null
+  cond_dropout: 0.15
+  ema_decay: 0.999
+  accumulation_steps: 1
+  warmup_epochs: 3
+  warmup_steps: null
+  min_learning_rate_ratio: 0.05
+  auto_resume: false
+  resume_from_checkpoint: null
+  log_every_steps: 25
 
 loss:
   reconstruction_weight: 1.0
-  lambda_phys: 0.25
-  acceleration_weight: 0.15
-  joint_limit_weight: 0.25
-  temporal_jitter_weight: 0.10
+  lambda_phys: 0.55
+  acceleration_weight: 0.25
+  joint_limit_weight: 0.65
+  temporal_jitter_weight: 0.18
+  self_collision_weight: 0.05
+  self_collision_margin: 0.08
 
 evaluation:
   metrics:
     - "mse_reconstruction"
     - "temporal_smoothness"
     - "auroc_anomaly"
+    - "temporal_smoothness_index"
+    - "joint_limit_violation_rate"
+    - "beat_alignment_score"
   anomaly_score: "reconstruction_plus_biomechanical"
   reconstruction_steps: 80
+  tsi_failure_threshold: 1.0
+  jlvr_failure_threshold: 0.12
+  self_collision_failure_threshold: 0.01
+
+inference:
+  guidance_scale: 1.8
+  use_ema: true
+  sliding_window_frames: 240
+  prefix_frames: 60
+  generation_frames: 450
+  diffusion_steps: null
 
 visualization:
   fps: 24
-  max_frames: 360
+  max_frames: 120
   dpi: 140
+
+showcase:
+  track_path: "${SHOWCASE_TRACK:-data/stardust.wav}"
+  clip_start_seconds: 46.0
+  clip_duration_seconds: 15.0
+  output_dir: "outputs/showcase"
+  viral_fps: 30
+  research_fps: 30
+  render_dpi: 160

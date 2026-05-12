@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 import os
 from pathlib import Path
 import re
@@ -77,6 +77,8 @@ class AISTConfig:
 
     Fields:
         root_dir: Dataset root containing recursive .pkl/.npz SMPL motion files.
+        split_dir: Optional directory containing official AIST++ split files.
+        ignore_list_path: Optional official AIST++ ignore_list.txt path.
         file_glob: Recursive glob pattern relative to root_dir.
         pose_keys: Candidate dictionary keys for SMPL axis-angle poses [T, 72].
         source_fps: Frame rate of raw AIST++ motion files.
@@ -85,9 +87,13 @@ class AISTConfig:
         train_split: Fraction of sorted files assigned to train.
         val_split: Fraction of sorted files assigned to validation.
         max_files_per_split: Optional cap for lightweight validation notebooks.
+        toy_mode: Restrict local runs to toy_max_files_per_split files per split.
+        toy_max_files_per_split: File cap used when toy_mode is true.
     """
 
     root_dir: str
+    split_dir: str | None
+    ignore_list_path: str | None
     file_glob: str
     pose_keys: list[str]
     source_fps: float
@@ -96,6 +102,8 @@ class AISTConfig:
     train_split: float
     val_split: float
     max_files_per_split: int | None
+    toy_mode: bool
+    toy_max_files_per_split: int
 
 
 @dataclass(frozen=True)
@@ -125,11 +133,28 @@ class ModelConfig:
 
     name: str
     input_dim: int
+    audio_dim: int
     hidden_dim: int
     num_layers: int
     num_heads: int
     dropout: float
     time_embedding_dim: int
+
+
+@dataclass(frozen=True)
+class AudioConfig:
+    """Audio feature extraction settings for music conditioning."""
+
+    enabled: bool
+    root_dir: str
+    sample_rate: int
+    hop_length: int
+    feature_dim: int
+    cache_dir: str = "outputs/audio_features"
+    allowed_extensions: list[str] = field(default_factory=lambda: [".wav", ".mp3", ".flac", ".m4a", ".mp4"])
+    require_audio: bool = False
+    min_coverage: float = 0.0
+    log_missing_audio: bool = False
 
 
 @dataclass(frozen=True)
@@ -153,6 +178,41 @@ class TrainingConfig:
     grad_clip_norm: float
     mixed_precision: bool
     save_every_epochs: int
+    max_duration_seconds: float | None
+    cond_dropout: float = 0.0
+    ema_decay: float = 0.0
+    accumulation_steps: int = 1
+    warmup_epochs: float = 0.0
+    warmup_steps: int | None = None
+    min_learning_rate_ratio: float = 0.05
+    auto_resume: bool = False
+    resume_from_checkpoint: str | None = None
+    log_every_steps: int = 25
+
+
+@dataclass(frozen=True)
+class InferenceConfig:
+    """Sampling and classifier-free guidance controls."""
+
+    guidance_scale: float = 1.0
+    use_ema: bool = True
+    sliding_window_frames: int = 240
+    prefix_frames: int = 60
+    generation_frames: int = 450
+    diffusion_steps: int | None = None
+
+
+@dataclass(frozen=True)
+class ShowcaseConfig:
+    """Kaggle showcase generation controls."""
+
+    track_path: str = "data/stardust.wav"
+    clip_start_seconds: float = 46.0
+    clip_duration_seconds: float = 15.0
+    output_dir: str = "outputs/showcase"
+    viral_fps: int = 30
+    research_fps: int = 30
+    render_dpi: int = 160
 
 
 @dataclass(frozen=True)
@@ -164,6 +224,8 @@ class LossConfig:
     acceleration_weight: float
     joint_limit_weight: float
     temporal_jitter_weight: float
+    self_collision_weight: float = 0.0
+    self_collision_margin: float = 0.08
 
 
 @dataclass(frozen=True)
@@ -173,6 +235,9 @@ class EvaluationConfig:
     metrics: list[str]
     anomaly_score: str
     reconstruction_steps: int
+    tsi_failure_threshold: float = 0.25
+    jlvr_failure_threshold: float = 0.02
+    self_collision_failure_threshold: float = 0.01
 
 
 @dataclass(frozen=True)
@@ -193,11 +258,14 @@ class ExperimentConfig:
     device: DeviceConfig
     data: DataConfig
     model: ModelConfig
+    audio: AudioConfig
     diffusion: DiffusionConfig
     training: TrainingConfig
     loss: LossConfig
     evaluation: EvaluationConfig
     visualization: VisualizationConfig
+    inference: InferenceConfig = field(default_factory=InferenceConfig)
+    showcase: ShowcaseConfig = field(default_factory=ShowcaseConfig)
 
 
 def _build_motion_modes(raw_modes: dict[str, Any]) -> dict[str, MotionModeConfig]:
@@ -227,6 +295,9 @@ def _expand_env_defaults(value: Any) -> Any:
 
 def _from_dict(raw: dict[str, Any]) -> ExperimentConfig:
     """Create an :class:`ExperimentConfig` from a parsed YAML dictionary."""
+    training_raw = dict(raw["training"])
+    inference_raw = dict(raw.get("inference", {}))
+    showcase_raw = dict(raw.get("showcase", {}))
     return ExperimentConfig(
         project=ProjectConfig(**raw["project"]),
         reproducibility=ReproducibilityConfig(**raw["reproducibility"]),
@@ -249,11 +320,14 @@ def _from_dict(raw: dict[str, Any]) -> ExperimentConfig:
             aist=AISTConfig(**raw["data"]["aist"]),
         ),
         model=ModelConfig(**raw["model"]),
+        audio=AudioConfig(**raw["audio"]),
         diffusion=DiffusionConfig(**raw["diffusion"]),
-        training=TrainingConfig(**raw["training"]),
+        training=TrainingConfig(**training_raw),
         loss=LossConfig(**raw["loss"]),
         evaluation=EvaluationConfig(**raw["evaluation"]),
         visualization=VisualizationConfig(**raw["visualization"]),
+        inference=InferenceConfig(**inference_raw),
+        showcase=ShowcaseConfig(**showcase_raw),
     )
 
 

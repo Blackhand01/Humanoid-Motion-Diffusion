@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from embodied_motion_flow.losses.biomechanical import BiomechanicalConsistencyLoss
+from embodied_motion_flow.losses.biomechanical import BiomechanicalConsistencyLoss, SelfCollisionLoss
 
 
 def _build_loss() -> BiomechanicalConsistencyLoss:
@@ -44,8 +44,18 @@ def test_forward_returns_expected_components() -> None:
         "joint_limit_loss",
         "acceleration_loss",
         "temporal_jitter_loss",
+        "self_collision_loss",
         "physical_loss",
         "physical_loss_per_sample",
     }
     assert expected.issubset(outputs.keys())
     assert outputs["physical_loss_per_sample"].shape == (3,)
+
+
+def test_self_collision_loss_detects_near_non_adjacent_joint_centers() -> None:
+    loss_fn = SelfCollisionLoss(margin=0.2)
+    separated = torch.zeros(1, 4, 24, 3)
+    separated[:, :, :, 0] = torch.arange(24).view(1, 1, 24).float()
+    collapsed = separated.clone()
+    collapsed[:, :, 10, :] = collapsed[:, :, 20, :]
+    assert loss_fn(collapsed).item() > loss_fn(separated).item()
