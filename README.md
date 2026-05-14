@@ -159,7 +159,6 @@ Or open `training_tutorial.ipynb` on Kaggle and run all cells. The notebook trai
 
 - [Research Report](docs/RESEARCH_REPORT.md): evaluation engine, golden dataset mining, and biomechanical loss details.
 - [Sim-to-Real Guide](docs/SIM_TO_REAL_GUIDE.md): EMA smoothing, axis-angle representation, and robotics deployment constraints.
-- [Notebook Cleanup](docs/notebook_cleanup.md): rationale for keeping a single production notebook.
 
 ## Tests
 
